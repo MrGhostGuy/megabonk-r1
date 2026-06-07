@@ -271,9 +271,48 @@ function renderTitle(){
 function renderCharSelect(){
   ctx.fillStyle='#fff';ctx.font='bold 14px monospace';ctx.textAlign='center';ctx.fillText('SELECT CHARACTER',W/2,25);
   const chars=S.unlocks.chars;const cols=4,rows=Math.ceil(chars.length/cols);const cw=50,ch=45,ox=(W-cw*cols)/2+10,oy=40;
-  for(let i=0;i<chars.length;i++){const c=CHARS[chars[i]],col=i%cols,row=Math.floor(i/cols);const x=ox+col*cw,y=oy+row*ch;const sel=S.selectedChar===chars[i];ctx.fillStyle=sel?'#f1c40f':'#333';ctx.fillRect(x-2,y-2,cw-6,ch-4);ctx.fillStyle=c.col;ctx.fillRect(x,y,cw-10,ch-12);ctx.fillStyle='#fff';ctx.font='16px monospace';ctx.textAlign='center';ctx.fillText(c.emoji,x+cw/2-5,y+18);ctx.font='7px monospace';ctx.fillText(c.name,x+cw/2-5,y+32);if(ctx.strokeStyle)ctx.strokeStyle='#f1c40f'}
+  for(let i=0;i<chars.length;i++){const c=CHARS[chars[i]],col=i%cols,row=Math.floor(i/cols);const x=ox+col*cw,y=oy+row*ch;const sel=S.selectedChar===chars[i];ctx.fillStyle=sel?'#f1c40f':'#333';ctx.fillRect(x-2,y-2,cw-6,ch-4);ctx.fillStyle=c.col;ctx.fillRect(x,y,cw-10,ch-12);ctx.fillStyle='#fff';ctx.font='16px monospace';ctx.textAlign='center';ctx.fillText(c.emoji,x+cw/2-5,y+18);ctx.font='7px monospace';ctx.fillText(c.name,x+cw/2-5,y+32);ctx.strokeStyle='#f1c40f';ctx.lineWidth=2;ctx.strokeRect(x-2,y-2,cw-6,ch-4)}
   ctx.fillStyle='#888';ctx.font='9px monospace';ctx.textAlign='center';const sc=CHARS[S.selectedChar];ctx.fillText(sc.name+' - '+sc.pass,W/2,H-40);ctx.fillText(sc.passD,W/2,H-28);ctx.fillStyle='#fff';ctx.fillText('ENTER to start',W/2,H-12);
 }
+
+// BUGFIX: Add touch controls for gameplay - virtual joystick + auto-fire
+let touchMoveActive=false,touchMoveId=null,touchMoveStart={x:0,y:0};
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  const r=canvas.getBoundingClientRect();
+  for(const t of e.changedTouches){
+    const x=(t.clientX-r.left)*(W/r.width),y=(t.clientY-r.top)*(H/r.height);
+    if(S.screen==='title'){S.screen='charSelect'}
+    else if(S.screen==='charSelect'){/* handled below */}
+    else if(S.screen==='levelup'){const ch=Math.floor(x/(W/3));if(ch>=0&&ch<3)applyChoice(S.levelUpChoices[ch])}
+    else if(S.screen==='gameover'){resetGame();S.screen='title'}
+    else if(S.screen==='game'||S.screen==='levelup'){
+      // Left side = movement joystick, right side = interact
+      if(x<W*0.4){
+        touchMoveActive=true;touchMoveId=t.identifier;
+        touchMoveStart={x:t.clientX,y:t.clientY};
+      }
+    }
+  }
+},{passive:false});
+canvas.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  if(!touchMoveActive||S.screen!=='game')return;
+  const r=canvas.getBoundingClientRect();
+  for(const t of e.changedTouches){
+    if(t.identifier===touchMoveId){
+      const dx=t.clientX-touchMoveStart.x,dy=t.clientY-touchMoveStart.y;
+      keys['ArrowLeft']=dx<-15;keys['ArrowRight']=dx>15;
+      keys['ArrowUp']=dy<-15;keys['ArrowDown']=dy>15;
+    }
+  }
+},{passive:false});
+canvas.addEventListener('touchend',e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier===touchMoveId){touchMoveActive=false;touchMoveId=null;keys['ArrowLeft']=false;keys['ArrowRight']=false;keys['ArrowUp']=false;keys['ArrowDown']=false;}
+  }
+},{passive:false});
 
 function renderGame(){
   ctx.save();ctx.translate(-S.camX,-S.camY);
@@ -368,7 +407,12 @@ function resetGame(){
   S.player=null;S.enemies=[];S.projectiles=[];S.particles=[];S.drops=[];S.damageNums=[];S.interactables=[];S.levelUpChoices=[];S.paused=false;S.screenShake=0;
 }
 
-function gameLoop(){
+let lastFrameTime=0;
+function gameLoop(now){
+  const rawDt=lastFrameTime?(now-lastFrameTime)/16.67:1;
+  const dt=Math.min(rawDt,3);
+  lastFrameTime=now;
+  S.dt=dt;
   handleInput();update();render();requestAnimationFrame(gameLoop);
 }
 
