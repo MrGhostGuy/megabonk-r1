@@ -63,7 +63,7 @@ function spawnEnemy(type,x,y,sc=1){
 
 function part(x,y,col,n=5){for(let i=0;i<n;i++)S.particles.push({x,y,vx:rand(-2,2),vy:rand(-2,2),life:rand(15,30),maxL:30,col,sz:rand(1,3)})}
 function dmgNum(x,y,nm,cr=false){S.damageNums.push({x,y,text:nm.toString(),life:40,maxL:40,col:cr?'#f1c40f':'#fff',sz:cr?10:7})}
-function spawnXP(x,y,n){for(let i=0;i<Math.ceil(n);i++)S.drops.push({t:'xp',x:x+rand(-5,5),y:y+rand(-5,5),vx:rand(-0.5,0.5),vy:rand(-0.5,0.5),life:600,val:1,sz:3,col:'#3498db'})}
+function spawnXP(x,y,n){for(let i=0;i<Math.ceil(n);i++)S.drops.push({t:'xp',x:x+rand(-5,5),y:y+rand(-5,5),vx:rand(-0.5,0.5),vy:rand(-0.5,0.5),life:1800,val:1,sz:3,col:'#3498db'})}
 function spawnGold(x,y,n){for(let i=0;i<Math.ceil(n);i++)S.drops.push({t:'gold',x:x+rand(-5,5),y:y+rand(-5,5),vx:rand(-0.5,0.5),vy:rand(-0.5,0.5),life:600,val:1,sz:3,col:'#f1c40f'})}
 function spawnChest(x,y){S.interactables.push({t:'chest',x,y,w:12,h:12,open:false})}
 function spawnShrine(x,y){S.interactables.push({t:'shrine',x,y,w:12,h:12,used:false,charge:0,chargeT:120})}
@@ -113,7 +113,11 @@ function applyOnHit(p,e,wd){
 }
 
 function fireWeapon(p,w){
-  const dir=p.lastDir,a=Math.atan2(dir.y,dir.x);
+  let dir=p.lastDir;
+  // Auto-aim at nearest enemy (real Megabonk behavior)
+  let best=null,bd=1e9;for(const e of S.enemies){const d=(e.x-p.x)*(e.x-p.x)+(e.y-p.y)*(e.y-p.y);if(d<bd){bd=d;best=e}}
+  if(best)dir={x:best.x-p.x,y:best.y-p.y};
+  const a=Math.atan2(dir.y,dir.x);
   const count=w.n+(p.projBonus||0);
   let dmg=w.dmg*p.dmgMult*p.sizeMult;
   const sz=w.sz*p.sizeMult,spd=w.spd*p.projSpd,dur=(w.dur||60)*p.dur;
@@ -139,7 +143,7 @@ function fireWeapon(p,w){
 }
 
 function updateWeapons(p,dt){
-  for(const w of p.weapons){w._t=(w._t||0)+dt;const cd=w.cd/p.atkSpd;if(w._t>=cd){w._t=0;fireWeapon(p,w)}}
+  for(const w of p.weapons){w._t=(w._t||0)+dt;const cd=w.cd/(16.67*p.atkSpd);if(w._t>=cd){w._t=0;fireWeapon(p,w)}}
   if(p.flexCd<3){p.flexT=(p.flexT||0)+dt;if(p.flexT>=p.flexCd*60){p.flexT=0;for(const e of S.enemies){if(dist(e,p)<60){e.stun=30;part(e.x,e.y,'#f1c40f',3)}}}}
   if(p.energyOrbs){p._eT=(p._eT||0)+dt;if(p._eT>=20){p._eT=0;const n=getNearestEnemy(p.x,p.y);if(n){const a=Math.atan2(n.y-p.y,n.x-p.x);S.projectiles.push({x:p.x,y:p.y,vx:Math.cos(a)*3,vy:Math.sin(a)*3,dmg:8,life:90,sz:4,col:'#2c3e50',pierce:0,fromP:true})}}}
   if(p.holyAura&&p.regen>0){p._hT=(p._hT||0)+dt;if(p._hT>=15){p._hT=0;for(const e of S.enemies){if(dist(e,p)<50)dealDmg(e,p.regen*0.1,p)}}}
@@ -213,7 +217,7 @@ function updatePlayer(dt){
 }
 
 function updateDrops(dt){
-  for(let i=S.drops.length-1;i>=0;i--){const d=S.drops[i];d.life-=dt;d.x+=d.vx;d.y+=d.vy;d.vx*=0.95;d.vy*=0.95;if(S.player){const dx=S.player.x-d.x,dy=S.player.y-d.y,dd=Math.hypot(dx,dy);if(dd<30*S.player.pickupR){const a=Math.atan2(dy,dx);d.vx+=Math.cos(a)*2;d.vy+=Math.sin(a)*2}if(dd<8+5||d.life<=0){if(dd<8+5){if(d.t==='xp'){S.xp+=d.val;checkLevelUp()}else if(d.t==='gold')S.gold+=d.val}S.drops.splice(i,1)}}}
+  for(let i=S.drops.length-1;i>=0;i--){const d=S.drops[i];d.life-=dt;d.x+=d.vx;d.y+=d.vy;d.vx*=0.95;d.vy*=0.95;if(S.player){const dx=S.player.x-d.x,dy=S.player.y-d.y,dd=Math.hypot(dx,dy);if(dd<55*S.player.pickupR){const a=Math.atan2(dy,dx);d.vx+=Math.cos(a)*2;d.vy+=Math.sin(a)*2}if(dd<8+5||d.life<=0){if(dd<8+5){if(d.t==='xp'){S.xp+=d.val;checkLevelUp()}else if(d.t==='gold')S.gold+=d.val}S.drops.splice(i,1)}}}
   for(let i=S.particles.length-1;i>=0;i--){const p=S.particles[i];p.x+=p.vx;p.y+=p.vy;p.life-=dt;p.vx*=0.9;p.vy*=0.9;if(p.life<=0)S.particles.splice(i,1)}
   for(let i=S.damageNums.length-1;i>=0;i--){const d=S.damageNums[i];d.y-=0.5;d.life-=dt;if(d.life<=0)S.damageNums.splice(i,1)}
 }
@@ -223,12 +227,27 @@ function checkLevelUp(){
 }
 
 function generateLevelUpChoices(){
-  S.levelUpChoices=[];const types=['weapon','item','tome'];
-  for(let i=0;i<3;i++){const t=pick(types);if(t==='weapon'){const a=Object.keys(WPS).filter(w=>S.unlocks.weapons.includes(w));const w=pick(a);S.levelUpChoices.push({type:'weapon',id:w,data:WPS[w]})}else if(t==='item'){const a=Object.keys(ITEMS).filter(it=>S.unlocks.items.includes(it)||Math.random()<0.3);if(a.length){const id=pick(a);S.levelUpChoices.push({type:'item',id,data:ITEMS[id]})}else{const id=pick(Object.keys(TOMES));S.levelUpChoices.push({type:'tome',id,data:TOMES[id]})}}else{const id=pick(Object.keys(TOMES));S.levelUpChoices.push({type:'tome',id,data:TOMES[id]})}}
+  S.levelUpChoices=[];const types=["weapon","item","tome"];
+  const p=S.player;
+  // Weapon evolution: offer evolved versions of maxed weapons (real Megabonk mechanic)
+  const evoMap={firestaff:"Inferno Staff",sword:"Blood Blade",bone:"Bone Storm",aura:"Holy Aura",axe:"Executioner Axe",revolver:"Desperado",bow:"Storm Bow",katana:"Void Katana",shotgun:"Doomsayer"};
+  const evoCandidates=[];
+  if(p){for(const w of p.weapons){if(w.level>=8){const wKey=Object.keys(WPS).find(k=>WPS[k].name===w.name);if(wKey&&evoMap[wKey]&&(!p.evolvedW||!p.evolvedW.includes(w.name))){evoCandidates.push(w)}}}}
+  for(let i=0;i<3;i++){
+    if(evoCandidates.length>0&&Math.random()<0.35){
+      const w=evoCandidates.splice(0,1)[0];const wKey=Object.keys(WPS).find(k=>WPS[k].name===w.name);
+      S.levelUpChoices.push({type:"evolve",data:w,evoName:evoMap[wKey]||("Evolved "+w.name)});
+      continue;
+    }
+    const t=pick(types);
+    if(t==="weapon"){const a=Object.keys(WPS).filter(w=>S.unlocks.weapons.includes(w));const w=pick(a);S.levelUpChoices.push({type:"weapon",id:w,data:WPS[w]})}
+    else if(t==="item"){const a=Object.keys(ITEMS).filter(it=>S.unlocks.items.includes(it)||Math.random()<0.3);if(a.length){const id=pick(a);S.levelUpChoices.push({type:"item",id,data:ITEMS[id]})}else{const id=pick(Object.keys(TOMES));S.levelUpChoices.push({type:"tome",id,data:TOMES[id]})}}
+    else{const id=pick(Object.keys(TOMES));S.levelUpChoices.push({type:"tome",id,data:TOMES[id]})}
+  }
 }
 
 function applyChoice(choice){
-  const p=S.player;
+  const p=S.player; if(choice.type==="evolve"){const w=choice.data;w.name=choice.evoName;w.dmg=Math.round(w.dmg*2.5);w.level=9;w.maxLvl=15;if(!p.evolvedW)p.evolvedW=[];p.evolvedW.push(choice.evoName);w.cd=Math.max(8,Math.round(w.cd*0.7));S.screen="game";S.paused=false;return;}
   if(choice.type==='weapon'){const w=choice.data;const ex=p.weapons.find(wp=>wp.name===w.name);if(ex){ex.level=Math.min(ex.level+1,ex.maxLvl);ex.dmg+=w.dmg*0.1;ex.sz+=0.5}else p.weapons.push({...w,level:1,xp:0,xp2Lvl:5,maxLvl:40})}
   else if(choice.type==='item'){const it=choice.data;p.items.push(choice.id);if(it.e)it.e(p)}
   else if(choice.type==='tome'){const tm=choice.data;const k=tm.s;if(!p.tomes[k])p.tomes[k]=0;p.tomes[k]++;if(tm.s==='dmgMult')p.dmgMult+=tm.v;else if(tm.s==='maxHp'){p.maxHp+=tm.v;p.hp=Math.min(p.hp+tm.v,p.maxHp)}else if(tm.s==='moveSpd')p.moveSpd+=tm.v;else if(tm.s==='atkSpd')p.atkSpd+=tm.v;else if(tm.s==='evade')p.evade+=tm.v;else if(tm.s==='goldMult')p.goldMult+=tm.v;else if(tm.s==='knockback')p.knockback+=tm.v;else if(tm.s==='crit')p.crit+=tm.v;else if(tm.s==='projSpd')p.projSpd+=tm.v;else if(tm.s==='regen')p.regen+=tm.v;else if(tm.s==='maxShield'){p.maxShield+=tm.v;p.shield+=tm.v}else if(tm.s==='silverMult')p.silverMult+=tm.v;else if(tm.s==='sizeMult')p.sizeMult+=tm.v;else if(tm.s==='armor')p.armor+=tm.v;else if(tm.s==='pickupR')p.pickupR+=tm.v;else if(tm.s==='lifesteal')p.lifesteal+=tm.v;else if(tm.s==='dur')p.dur+=tm.v;else if(tm.s==='luck')p.luck+=tm.v;else if(tm.s==='projBonus')p.projBonus+=tm.v;else if(tm.s==='thorns')p.thorns+=tm.v;else if(tm.s==='xpMult')p.xpMult+=tm.v;else if(tm.s==='diffMult')p.diffMult+=tm.v}
@@ -236,10 +255,10 @@ function applyChoice(choice){
 }
 
 function spawnWave(){
-  const diff=S.difficulty;const count=5+Math.floor(diff*3);const types=['grunt','grunt','runner','skeleton','goblin'];if(diff>2)types.push('shooter','tank');if(diff>4)types.push('scorpion','wisp');if(diff>6)types.push('elite');
+  const diff=S.difficulty;const count=3+Math.floor(diff*2);const types=['grunt','grunt','runner','skeleton','goblin'];if(diff>2)types.push('shooter','tank');if(diff>4)types.push('scorpion','wisp');if(diff>6)types.push('elite');
   for(let i=0;i<count;i++){const angle=rand(0,TAU),dd=rand(150,250);spawnEnemy(pick(types),clamp(S.player.x+Math.cos(angle)*dd,20,S.worldW-20),clamp(S.player.y+Math.sin(angle)*dd,20,S.worldH-20))}
   if(S.wave%5===0&&!S.bossActive){const a=spawnEnemy('boss',S.player.x+rand(-180,180),S.player.y+rand(-180,180),1+diff*0.1);S.bossActive=true;S.boss=a}
-  S.difficulty+=0.15;
+  S.difficulty+=0.05;
 }
 
 // ============================================================
@@ -277,9 +296,9 @@ function renderCharSelect(){
 
 // BUGFIX: Add touch controls for gameplay - virtual joystick + auto-fire
 let touchMoveActive=false,touchMoveId=null,touchMoveStart={x:0,y:0};
-canvas.addEventListener('touchstart',e=>{
+C.addEventListener('touchstart',e=>{
   e.preventDefault();
-  const r=canvas.getBoundingClientRect();
+  const r=C.getBoundingClientRect();
   for(const t of e.changedTouches){
     const x=(t.clientX-r.left)*(W/r.width),y=(t.clientY-r.top)*(H/r.height);
     if(S.screen==='title'){S.screen='charSelect'}
@@ -295,10 +314,10 @@ canvas.addEventListener('touchstart',e=>{
     }
   }
 },{passive:false});
-canvas.addEventListener('touchmove',e=>{
+C.addEventListener('touchmove',e=>{
   e.preventDefault();
   if(!touchMoveActive||S.screen!=='game')return;
-  const r=canvas.getBoundingClientRect();
+  const r=C.getBoundingClientRect();
   for(const t of e.changedTouches){
     if(t.identifier===touchMoveId){
       const dx=t.clientX-touchMoveStart.x,dy=t.clientY-touchMoveStart.y;
@@ -307,7 +326,7 @@ canvas.addEventListener('touchmove',e=>{
     }
   }
 },{passive:false});
-canvas.addEventListener('touchend',e=>{
+C.addEventListener('touchend',e=>{
   e.preventDefault();
   for(const t of e.changedTouches){
     if(t.identifier===touchMoveId){touchMoveActive=false;touchMoveId=null;keys['ArrowLeft']=false;keys['ArrowRight']=false;keys['ArrowUp']=false;keys['ArrowDown']=false;}
@@ -341,7 +360,7 @@ function renderLevelUp(){
   ctx.fillStyle='rgba(0,0,0,0.8)';ctx.fillRect(10,20,W-20,H-40);
   ctx.fillStyle='#f1c40f';ctx.font='bold 14px monospace';ctx.textAlign='center';ctx.fillText('LEVEL UP!',W/2,40);
   ctx.font='9px monospace';ctx.fillStyle='#fff';ctx.fillText('Choose an upgrade:',W/2,55);
-  for(let i=0;i<S.levelUpChoices.length;i++){const ch=S.levelUpChoices[i],x=20+i*75,y=70;ctx.fillStyle='#333';ctx.fillRect(x,y,65,80);ctx.fillStyle=ch.data.col||'#fff';ctx.fillRect(x+2,y+2,61,30);ctx.fillStyle='#fff';ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText(ch.data.name,x+32,y+18);ctx.font='7px monospace';ctx.fillStyle='#ccc';ctx.fillText(ch.data.d||ch.data.desc||'',x+32,y+28);ctx.fillStyle='#888';ctx.fillText('['+(i+1)+']',x+32,y+42);ctx.fillText('Tier: '+(ch.data.tier||'Tome'),x+32,y+52)}
+  for(let i=0;i<S.levelUpChoices.length;i++){const ch=S.levelUpChoices[i],x=20+i*75,y=70;ctx.fillStyle=ch.type==='evolve'?'#660':'#333';ctx.fillRect(x,y,65,80);ctx.fillStyle=ch.data.col||'#fff';ctx.fillRect(x+2,y+2,61,30);ctx.fillStyle='#fff';ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText(ch.type==='evolve'?'EVO: '+ch.evoName:ch.data.name,x+32,y+18);ctx.font='7px monospace';ctx.fillStyle='#ccc';ctx.fillText(ch.data.d||ch.data.desc||'',x+32,y+28);ctx.fillStyle='#888';ctx.fillText('['+(i+1)+']',x+32,y+42);ctx.fillText(ch.type==='evolve'?'EVOLVED!':'Tier: '+(ch.data.tier||'Tome'),x+32,y+52)}
   ctx.fillStyle='#888';ctx.font='9px monospace';ctx.textAlign='center';ctx.fillText('Press 1, 2, or 3',W/2,H-25);
 }
 
@@ -365,6 +384,9 @@ function update(){
     // Wave spawning
     S.spawnTimer+=dt;
     if(S.spawnTimer>=S.spawnRate){S.spawnTimer=0;spawnWave()}
+    // Wave progression (enables bosses via wave%5)
+    S.waveTimer+=dt;
+    if(S.waveTimer>=S.waveInterval){S.waveTimer=0;S.wave++}
     // Boss check
     if(S.bossActive&&(!S.boss||S.boss.hp<=0)){S.bossActive=false;S.boss=null}
     // Player death
@@ -415,9 +437,6 @@ function gameLoop(now){
   S.dt=dt;
   handleInput();update();render();requestAnimationFrame(gameLoop);
 }
-
-// Touch support for R1
-canvas.addEventListener('touchstart',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();for(const t of e.changedTouches){const x=(t.clientX-r.left)*(W/r.width),y=(t.clientY-r.top)*(H/r.height);if(S.screen==='title'){S.screen='charSelect'}else if(S.screen==='levelup'){const ch=Math.floor(x/(W/3));if(ch>=0&&ch<3)applyChoice(S.levelUpChoices[ch])}else if(S.screen==='gameover'){resetGame();S.screen='title'}}},{passive:false});
 
 // Start
 gameLoop();
