@@ -302,11 +302,22 @@ C.addEventListener('touchstart',e=>{
   for(const t of e.changedTouches){
     const x=(t.clientX-r.left)*(W/r.width),y=(t.clientY-r.top)*(H/r.height);
     if(S.screen==='title'){S.screen='charSelect'}
-    else if(S.screen==='charSelect'){/* handled below */}
+    else if(S.screen==='charSelect'){
+      // Hit-test character grid (same geometry as renderCharSelect: cols=4,cw=50,ch=45,ox=30,oy=40)
+      const chars=S.unlocks.chars,cols=4,cw=50,chh=45,ox=(W-cw*cols)/2+10,oy=40;
+      for(let i=0;i<chars.length;i++){
+        const col=i%cols,row=Math.floor(i/cols),cx=ox+col*cw,cy=oy+row*chh;
+        if(x>=cx&&x<cx+cw&&y>=cy&&y<cy+chh){
+          if(S.selectedChar===chars[i]){startGame()}
+          else{S.selectedChar=chars[i]}
+          break;
+        }
+      }
+    }
     else if(S.screen==='levelup'){const ch=Math.floor(x/(W/3));if(ch>=0&&ch<3)applyChoice(S.levelUpChoices[ch])}
     else if(S.screen==='gameover'){resetGame();S.screen='title'}
-    else if(S.screen==='game'||S.screen==='levelup'){
-      // Left side = movement joystick, right side = interact
+    else if(S.screen==='game'){
+      // Left side = movement joystick
       if(x<W*0.4){
         touchMoveActive=true;touchMoveId=t.identifier;
         touchMoveStart={x:t.clientX,y:t.clientY};
@@ -314,6 +325,17 @@ C.addEventListener('touchstart',e=>{
     }
   }
 },{passive:false});
+// R1 scroll wheel: menu navigation (debounced - wheel sends rapid tick events)
+let lastWheelT=0;
+window.addEventListener('wheel',e=>{
+  const now=performance.now();if(now-lastWheelT<120)return;lastWheelT=now;
+  if(S.screen==='title'){S.screen='charSelect'}
+  else if(S.screen==='charSelect'){
+    const chars=S.unlocks.chars,i=chars.indexOf(S.selectedChar);
+    S.selectedChar=chars[(i+(e.deltaY>0?1:chars.length-1))%chars.length];
+  }
+  else if(S.screen==='gameover'){resetGame();S.screen='title'}
+},{passive:true});
 C.addEventListener('touchmove',e=>{
   e.preventDefault();
   if(!touchMoveActive||S.screen!=='game')return;
