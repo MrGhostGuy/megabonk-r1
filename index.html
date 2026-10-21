@@ -213,7 +213,7 @@ function updatePlayer(dt){
 }
 
 function updateDrops(dt){
-  for(let i=S.drops.length-1;i>=0;i--){const d=S.drops[i];d.life-=dt;d.x+=d.vx;d.y+=d.vy;d.vx*=0.95;d.vy*=0.95;if(S.player){const dx=S.player.x-d.x,dy=S.player.y-d.y,dd=Math.hypot(dx,dy);if(dd<30*S.player.pickupR){const a=Math.atan2(dy,dx);d.vx+=Math.cos(a)*2;d.vy+=Math.sin(a)*2}if(dd<8+5||d.life<=0){if(dd<8+5){if(d.t==='xp'){S.xp+=d.val;checkLevelUp()}else if(d.t==='gold')S.gold+=d.val}S.drops.splice(i,1)}}
+  for(let i=S.drops.length-1;i>=0;i--){const d=S.drops[i];d.life-=dt;d.x+=d.vx;d.y+=d.vy;d.vx*=0.95;d.vy*=0.95;if(S.player){const dx=S.player.x-d.x,dy=S.player.y-d.y,dd=Math.hypot(dx,dy);if(dd<30*S.player.pickupR){const a=Math.atan2(dy,dx);d.vx+=Math.cos(a)*2;d.vy+=Math.sin(a)*2}if(dd<8+5||d.life<=0){if(dd<8+5){if(d.t==='xp'){S.xp+=d.val;checkLevelUp()}else if(d.t==='gold')S.gold+=d.val}S.drops.splice(i,1)}}}
   for(let i=S.particles.length-1;i>=0;i--){const p=S.particles[i];p.x+=p.vx;p.y+=p.vy;p.life-=dt;p.vx*=0.9;p.vy*=0.9;if(p.life<=0)S.particles.splice(i,1)}
   for(let i=S.damageNums.length-1;i>=0;i--){const d=S.damageNums[i];d.y-=0.5;d.life-=dt;if(d.life<=0)S.damageNums.splice(i,1)}
 }
